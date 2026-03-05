@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Home, MessageSquare, BarChart3, Users, FileText, Database, Settings, ChevronLeft, ChevronRight, Download, Aperture, UserCircle, Lock } from 'lucide-react'
+import { Home, MessageSquare, BarChart3, Users, FileText, Settings, ChevronLeft, ChevronRight, Download, Aperture, UserCircle, Lock, ChevronUp, Trash2 } from 'lucide-react'
 import { useAppStore } from '../stores/appStore'
 import * as configService from '../services/config'
 import { onExportSessionStatus, requestExportSessionStatus } from '../services/exportBridge'
@@ -69,11 +69,29 @@ function Sidebar() {
     wxid: '',
     displayName: '未识别用户'
   })
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
+  const [showClearAccountDialog, setShowClearAccountDialog] = useState(false)
+  const [shouldClearCacheData, setShouldClearCacheData] = useState(false)
+  const [shouldClearExportData, setShouldClearExportData] = useState(false)
+  const [isClearingAccountData, setIsClearingAccountData] = useState(false)
+  const accountCardWrapRef = useRef<HTMLDivElement | null>(null)
   const setLocked = useAppStore(state => state.setLocked)
 
   useEffect(() => {
     window.electronAPI.auth.verifyEnabled().then(setAuthEnabled)
   }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!isAccountMenuOpen) return
+      const target = event.target as Node | null
+      if (accountCardWrapRef.current && target && !accountCardWrapRef.current.contains(target)) {
+        setIsAccountMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isAccountMenuOpen])
 
   useEffect(() => {
     const unsubscribe = onExportSessionStatus((payload) => {
@@ -235,6 +253,68 @@ function Sidebar() {
     return location.pathname === path || location.pathname.startsWith(`${path}/`)
   }
   const exportTaskBadge = activeExportTaskCount > 99 ? '99+' : `${activeExportTaskCount}`
+  const canConfirmClear = shouldClearCacheData || shouldClearExportData
+
+  const resetClearDialogState = () => {
+    setShouldClearCacheData(false)
+    setShouldClearExportData(false)
+    setShowClearAccountDialog(false)
+  }
+
+  const openClearAccountDialog = () => {
+    setIsAccountMenuOpen(false)
+    setShouldClearCacheData(false)
+    setShouldClearExportData(false)
+    setShowClearAccountDialog(true)
+  }
+
+  const handleConfirmClearAccountData = async () => {
+    if (!canConfirmClear || isClearingAccountData) return
+    setIsClearingAccountData(true)
+    try {
+      const result = await window.electronAPI.chat.clearCurrentAccountData({
+        clearCache: shouldClearCacheData,
+        clearExports: shouldClearExportData
+      })
+      if (!result.success) {
+        window.alert(result.error || '清理失败，请稍后重试。')
+        return
+      }
+      window.localStorage.removeItem(SIDEBAR_USER_PROFILE_CACHE_KEY)
+      setUserProfile({ wxid: '', displayName: '未识别用户' })
+      window.dispatchEvent(new Event('wxid-changed'))
+
+      const removedPaths = Array.isArray(result.removedPaths) ? result.removedPaths : []
+      const selectedScopes = [
+        shouldClearCacheData ? '缓存数据' : '',
+        shouldClearExportData ? '导出数据' : ''
+      ].filter(Boolean)
+      const detailLines: string[] = [
+        `清理范围：${selectedScopes.join('、') || '未选择'}`,
+        `已清理项目：${removedPaths.length} 项`
+      ]
+      if (removedPaths.length > 0) {
+        detailLines.push('', '清理明细（最多显示 8 项）：')
+        for (const [index, path] of removedPaths.slice(0, 8).entries()) {
+          detailLines.push(`${index + 1}. ${path}`)
+        }
+        if (removedPaths.length > 8) {
+          detailLines.push(`... 其余 ${removedPaths.length - 8} 项已省略`)
+        }
+      }
+      if (result.warning) {
+        detailLines.push('', `注意：${result.warning}`)
+      }
+      window.alert(`账号数据清理完成。\n\n${detailLines.join('\n')}\n\n为保障数据安全，WeFlow 已清除该账号本地缓存/导出相关数据。若需再次获取数据，请手动登录微信客户端并重新在 WeFlow 完成配置。`)
+      resetClearDialogState()
+      window.location.reload()
+    } catch (error) {
+      console.error('清理账号数据失败:', error)
+      window.alert('清理失败，请稍后重试。')
+    } finally {
+      setIsClearingAccountData(false)
+    }
+  }
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -331,16 +411,42 @@ function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <div
-          className="sidebar-user-card"
-          title={collapsed ? `${userProfile.displayName}${userProfile.wxid ? `\n${userProfile.wxid}` : ''}` : undefined}
-        >
-          <div className="user-avatar">
-            {userProfile.avatarUrl ? <img src={userProfile.avatarUrl} alt="" /> : <span>{getAvatarLetter(userProfile.displayName)}</span>}
-          </div>
-          <div className="user-meta">
-            <div className="user-name">{userProfile.displayName}</div>
-            <div className="user-wxid">{userProfile.wxid || 'wxid 未识别'}</div>
+        <div className="sidebar-user-card-wrap" ref={accountCardWrapRef}>
+          {isAccountMenuOpen && (
+            <button
+              className="sidebar-user-clear-trigger"
+              onClick={openClearAccountDialog}
+              type="button"
+            >
+              <Trash2 size={14} />
+              <span>清除此账号所有数据</span>
+            </button>
+          )}
+          <div
+            className={`sidebar-user-card ${isAccountMenuOpen ? 'menu-open' : ''}`}
+            title={collapsed ? `${userProfile.displayName}${userProfile.wxid ? `\n${userProfile.wxid}` : ''}` : undefined}
+            onClick={() => setIsAccountMenuOpen(prev => !prev)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                setIsAccountMenuOpen(prev => !prev)
+              }
+            }}
+          >
+            <div className="user-avatar">
+              {userProfile.avatarUrl ? <img src={userProfile.avatarUrl} alt="" /> : <span>{getAvatarLetter(userProfile.displayName)}</span>}
+            </div>
+            <div className="user-meta">
+              <div className="user-name">{userProfile.displayName}</div>
+              <div className="user-wxid">{userProfile.wxid || 'wxid 未识别'}</div>
+            </div>
+            {!collapsed && (
+              <span className={`user-menu-caret ${isAccountMenuOpen ? 'open' : ''}`}>
+                <ChevronUp size={14} />
+              </span>
+            )}
           </div>
         </div>
 
@@ -374,6 +480,49 @@ function Sidebar() {
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
+
+      {showClearAccountDialog && (
+        <div className="sidebar-clear-dialog-overlay" onClick={() => !isClearingAccountData && resetClearDialogState()}>
+          <div className="sidebar-clear-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <h3>清除此账号所有数据</h3>
+            <p>
+              操作后可将该账户在 weflow 下产生的所有缓存文件、导出文件等彻底清除。
+              清除后必须手动登录微信客户端 weflow 才能再次获取，保障你的数据安全。
+            </p>
+            <div className="sidebar-clear-options">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={shouldClearCacheData}
+                  onChange={(event) => setShouldClearCacheData(event.target.checked)}
+                  disabled={isClearingAccountData}
+                />
+                缓存数据
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={shouldClearExportData}
+                  onChange={(event) => setShouldClearExportData(event.target.checked)}
+                  disabled={isClearingAccountData}
+                />
+                导出数据
+              </label>
+            </div>
+            <div className="sidebar-clear-actions">
+              <button type="button" onClick={resetClearDialogState} disabled={isClearingAccountData}>取消</button>
+              <button
+                type="button"
+                className="danger"
+                disabled={!canConfirmClear || isClearingAccountData}
+                onClick={handleConfirmClearAccountData}
+              >
+                {isClearingAccountData ? '清除中...' : '确认清除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   )
 }

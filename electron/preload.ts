@@ -166,6 +166,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getMyAvatarUrl: () => ipcRenderer.invoke('chat:getMyAvatarUrl'),
     downloadEmoji: (cdnUrl: string, md5?: string) => ipcRenderer.invoke('chat:downloadEmoji', cdnUrl, md5),
     getCachedMessages: (sessionId: string) => ipcRenderer.invoke('chat:getCachedMessages', sessionId),
+    clearCurrentAccountData: (options: { clearCache?: boolean; clearExports?: boolean }) =>
+      ipcRenderer.invoke('chat:clearCurrentAccountData', options),
     close: () => ipcRenderer.invoke('chat:close'),
     getSessionDetail: (sessionId: string) => ipcRenderer.invoke('chat:getSessionDetail', sessionId),
     getSessionDetailFast: (sessionId: string) => ipcRenderer.invoke('chat:getSessionDetailFast', sessionId),

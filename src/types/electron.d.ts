@@ -191,6 +191,12 @@ export interface ElectronAPI {
       messages?: Message[]
       error?: string
     }>
+    clearCurrentAccountData: (options: { clearCache?: boolean; clearExports?: boolean }) => Promise<{
+      success: boolean
+      removedPaths?: string[]
+      warning?: string
+      error?: string
+    }>
     getContact: (username: string) => Promise<Contact | null>
     getContactAvatar: (username: string) => Promise<{ avatarUrl?: string; displayName?: string } | null>
     updateMessage: (sessionId: string, localId: number, createTime: number, newContent: string) => Promise<{ success: boolean; error?: string }>
