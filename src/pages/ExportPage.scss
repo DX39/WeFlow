@@ -20,6 +20,12 @@
   flex-shrink: 0;
 }
 
+.export-top-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .export-section-title-row {
   display: flex;
   align-items: center;
@@ -255,6 +261,7 @@
 }
 
 .global-export-controls {
+  flex: 1;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -499,81 +506,6 @@
     }
   }
 
-  .task-center-control {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-  }
-
-  .task-center-inline {
-    min-height: 34px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--bg-secondary);
-    padding: 0 8px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    flex-wrap: nowrap;
-  }
-
-  .task-summary {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-  }
-
-  .task-open-btn {
-    border: 1px solid var(--border-color);
-    background: var(--bg-primary);
-    border-radius: 7px;
-    padding: 3px 7px;
-    font-size: 11px;
-    color: var(--text-secondary);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
-
-    &:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-
-    &.active-running {
-      border-color: rgba(255, 77, 79, 0.45);
-      color: #ff4d4f;
-      box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.16);
-    }
-  }
-
-  .task-running-badge {
-    min-width: 16px;
-    height: 16px;
-    border-radius: 999px;
-    background: #ff4d4f;
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 4px;
-    line-height: 1;
-    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
-    animation: exportTaskBadgePulse 1.2s ease-in-out infinite;
-  }
-
   .secondary-btn {
     border-radius: 7px;
     padding: 6px 9px;
@@ -581,6 +513,58 @@
     gap: 4px;
     flex-shrink: 0;
   }
+}
+
+.task-center-card {
+  min-width: 92px;
+  min-height: 42px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+
+  &:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+  }
+
+  &.has-alert {
+    border-color: rgba(255, 77, 79, 0.28);
+    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.08);
+  }
+}
+
+.task-center-card-label {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.task-center-card-badge {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  line-height: 1;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.16);
+  animation: exportTaskBadgePulse 1.2s ease-in-out infinite;
 }
 
 .content-card-grid {
@@ -3288,6 +3272,10 @@
 }
 
 @media (max-width: 1360px) {
+  .export-top-bar {
+    gap: 10px;
+  }
+
   .global-export-controls {
     padding: 10px;
     gap: 8px;
@@ -3307,12 +3295,18 @@
 }
 
 @media (max-width: 760px) {
+  .export-top-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .global-export-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .task-center-control {
-    grid-column: 1 / -1;
+  .task-center-card {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 

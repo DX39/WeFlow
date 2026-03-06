@@ -4884,6 +4884,7 @@ function ExportPage() {
   const isSnsCardStatsLoading = !hasSeededSnsStats
   const taskRunningCount = tasks.filter(task => task.status === 'running').length
   const taskQueuedCount = tasks.filter(task => task.status === 'queued').length
+  const taskCenterAlertCount = taskRunningCount + taskQueuedCount
   const hasFilteredContacts = filteredContacts.length > 0
   const sessionLoadDetailUpdatedAt = useMemo(() => {
     let latest = 0
@@ -5149,60 +5150,54 @@ function ExportPage() {
   return (
     <div className="export-board-page">
       <div className="export-top-panel">
-        <div className="global-export-controls">
-          <div className="path-control">
-            <span className="control-label">导出位置</span>
-            <div className="path-inline-row">
-              <div className="path-value">
-                <button
-                  className="path-link"
-                  type="button"
-                  title={exportFolder}
-                  onClick={() => void chooseExportFolder()}
-                >
-                  {exportFolder || '未设置'}
-                </button>
-                <button className="path-change-btn" type="button" onClick={() => void chooseExportFolder()}>
-                  更换
+        <div className="export-top-bar">
+          <div className="global-export-controls">
+            <div className="path-control">
+              <span className="control-label">导出位置</span>
+              <div className="path-inline-row">
+                <div className="path-value">
+                  <button
+                    className="path-link"
+                    type="button"
+                    title={exportFolder}
+                    onClick={() => void chooseExportFolder()}
+                  >
+                    {exportFolder || '未设置'}
+                  </button>
+                  <button className="path-change-btn" type="button" onClick={() => void chooseExportFolder()}>
+                    更换
+                  </button>
+                </div>
+                <button className="secondary-btn" onClick={() => exportFolder && void window.electronAPI.shell.openPath(exportFolder)}>
+                  <ExternalLink size={14} /> 打开
                 </button>
               </div>
-              <button className="secondary-btn" onClick={() => exportFolder && void window.electronAPI.shell.openPath(exportFolder)}>
-                <ExternalLink size={14} /> 打开
-              </button>
             </div>
+
+            <WriteLayoutSelector
+              writeLayout={writeLayout}
+              onChange={async (value) => {
+                setWriteLayout(value)
+                await configService.setExportWriteLayout(value)
+              }}
+              sessionNameWithTypePrefix={sessionNameWithTypePrefix}
+              onSessionNameWithTypePrefixChange={async (enabled) => {
+                setSessionNameWithTypePrefix(enabled)
+                await configService.setExportSessionNamePrefixEnabled(enabled)
+              }}
+            />
           </div>
 
-          <WriteLayoutSelector
-            writeLayout={writeLayout}
-            onChange={async (value) => {
-              setWriteLayout(value)
-              await configService.setExportWriteLayout(value)
-            }}
-            sessionNameWithTypePrefix={sessionNameWithTypePrefix}
-            onSessionNameWithTypePrefixChange={async (enabled) => {
-              setSessionNameWithTypePrefix(enabled)
-              await configService.setExportSessionNamePrefixEnabled(enabled)
-            }}
-          />
-
-          <div className="task-center-control">
-            <span className="control-label">任务中心</span>
-            <div className="task-center-inline">
-              <div className="task-summary">
-                <span>进行中 {taskRunningCount}</span>
-                <span>排队 {taskQueuedCount}</span>
-                <span>总计 {tasks.length}</span>
-              </div>
-              <button
-                className={`task-open-btn ${taskRunningCount > 0 ? 'active-running' : ''}`}
-                type="button"
-                onClick={() => setIsTaskCenterOpen(true)}
-              >
-                任务卡片
-                {taskRunningCount > 0 && <span className="task-running-badge">{taskRunningCount}</span>}
-              </button>
-            </div>
-          </div>
+          <button
+            className={`task-center-card ${taskCenterAlertCount > 0 ? 'has-alert' : ''}`}
+            type="button"
+            onClick={() => setIsTaskCenterOpen(true)}
+          >
+            <span className="task-center-card-label">任务中心</span>
+            {taskCenterAlertCount > 0 && (
+              <span className="task-center-card-badge">{taskCenterAlertCount}</span>
+            )}
+          </button>
         </div>
       </div>
 
