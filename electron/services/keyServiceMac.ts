@@ -363,7 +363,7 @@ export class KeyServiceMac {
     // 用 AppleScript 的 quoted form 组装命令，避免复杂 shell 拼接导致整条失败
     const scriptLines = [
       `set helperPath to ${JSON.stringify(helperPath)}`,
-      `set cmd to quoted form of helperPath & " ${pid} ${waitMs}"`,
+      `set cmd to quoted form of helperPath & " ${pid} ${waitMs} 2>&1"`,
       'do shell script cmd with administrator privileges'
     ]
     onStatus?.('已准备就绪，现在登录微信或退出登录后重新登录微信', 0)
@@ -380,18 +380,27 @@ export class KeyServiceMac {
     }
 
     const lines = String(stdout).split(/\r?\n/).map(x => x.trim()).filter(Boolean)
-    const last = lines[lines.length - 1]
-    if (!last) throw new Error('elevated helper returned empty output')
+    if (!lines.length) throw new Error('elevated helper returned empty output')
 
-    let payload: any
-    try {
-      payload = JSON.parse(last)
-    } catch {
-      throw new Error('elevated helper returned invalid json: ' + last)
+    // 从所有行里提取所有 JSON 对象（同一行可能有多个拼接），找含 key/result 的那个
+    const extractJsonObjects = (s: string): any[] => {
+      const results: any[] = []
+      const re = /\{[^{}]*\}/g
+      let m: RegExpExecArray | null
+      while ((m = re.exec(s)) !== null) {
+        try { results.push(JSON.parse(m[0])) } catch { }
+      }
+      return results
     }
-    if (payload?.success === true && typeof payload?.key === 'string') return payload.key
-    if (typeof payload?.result === 'string') return payload.result
-    throw new Error('elevated helper json missing key/result')
+    const fullOutput = lines.join('\n')
+    const allJson = extractJsonObjects(fullOutput)
+    // 优先找 success=true && key 字段
+    const successPayload = allJson.find(p => p?.success === true && typeof p?.key === 'string')
+    if (successPayload) return successPayload.key
+    // 其次找 result 字段
+    const resultPayload = allJson.find(p => typeof p?.result === 'string')
+    if (resultPayload) return resultPayload.result
+    throw new Error('elevated helper returned invalid json: ' + lines[lines.length - 1])
   }
 
   private mapDbKeyErrorMessage(code?: string, detail?: string): string {
